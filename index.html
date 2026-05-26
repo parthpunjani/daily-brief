@@ -548,20 +548,34 @@ Rules:
 - The data-card-chg div must use class "up" for positive changes and "down" for negative`;
 
   try {
-    const PROXY = 'https://corsproxy.io/?url=https://api.anthropic.com/v1/messages';
-    const response = await fetch(PROXY, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': SESSION_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20251001',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+    // Try multiple proxies in sequence
+    const PROXIES = [
+      'https://api.allorigins.win/raw?url=https://api.anthropic.com/v1/messages',
+      'https://corsproxy.io/?url=https://api.anthropic.com/v1/messages',
+      'https://proxy.cors.sh/https://api.anthropic.com/v1/messages',
+    ];
+    let response, lastErr;
+    for (const proxy of PROXIES) {
+      try {
+        response = await fetch(proxy, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': SESSION_KEY,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5-20251001',
+            max_tokens: 4000,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
+        if (response.ok) break;
+      } catch(e) { lastErr = e; continue; }
+    }
+    if (!response) throw lastErr || new Error('All proxies failed');
+    const PROXY = ''; // dummy to avoid reference error
+
 
     clearInterval(stepInterval);
 

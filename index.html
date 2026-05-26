@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Australian Daily Business Briefing">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://api.anthropic.com https://api.anthropic.com/v1/messages; font-src 'self' data:; img-src 'self' data:;">
+  <title>The Daily Brief — Australian Business Intelligence</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --text-secondary: #555;
+      --text-muted: #888;
+      --bg: #faf9f7;
+      --surface: #fff;
+      --border: rgba(0,0,0,0.12);
+      --border-strong: rgba(0,0,0,0.3);
+      --accent: #c0392b;
+      --success: #1a7a3f;
+      --warning: #b7680c;
+      --radius: 6px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #f0ede8;
+        --text-secondary: #bbb;
+        --text-muted: #777;
+        --bg: #141210;
+        --surface: #1e1c19;
+        --border: rgba(255,255,255,0.1);
+        --border-strong: rgba(255,255,255,0.25);
+        --accent: #e05a4a;
+        --success: #4caf78;
+        --warning: #e6a030;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, 'Times New Roman', serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Auth gate ── */
+    #auth-gate {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .auth-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+    }
+    .auth-logo { font-size: 22px; font-weight: 500; margin-bottom: 0.3rem; }
+    .auth-sub { font-family: sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 2rem; }
+    .auth-label { font-family: sans-serif; font-size: 12px; color: var(--text-secondary); text-align: left; display: block; margin-bottom: 0.4rem; }
+    .auth-input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: sans-serif;
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      margin-bottom: 0.75rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .auth-input:focus { border-color: var(--accent); }
+    .auth-input[type="password"] { letter-spacing: 0.1em; }
+    .auth-btn {
+      width: 100%;
+      padding: 11px;
+      font-family: sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: opacity 0.15s;
+      margin-top: 0.25rem;
+    }
+    .auth-btn:hover { opacity: 0.85; }
+    .auth-error { font-family: sans-serif; font-size: 12px; color: var(--accent); margin-top: 0.75rem; min-height: 18px; }
+    .auth-note { font-family: sans-serif; font-size: 11px; color: var(--text-muted); margin-top: 1.5rem; line-height: 1.5; }
+    .auth-remember { display: flex; align-items: center; gap: 8px; margin-bottom: 0.75rem; }
+    .auth-remember input { width: 15px; height: 15px; accent-color: var(--text); cursor: pointer; }
+    .auth-remember label { font-family: sans-serif; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+
+    /* ── App shell ── */
+    #app { display: none; }
+    .topbar {
+      border-bottom: 0.5px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 0 1.5rem;
+    }
+    .topbar-inner {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+    }
+    .topbar-title { font-family: sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); }
+    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-sm {
+      font-family: sans-serif;
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border-strong);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn-sm:hover { background: var(--border); color: var(--text); }
+    .btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+    .spin { animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Content ── */
+    .content { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    .masthead { border-top: 3px solid var(--text); border-bottom: 0.5px solid var(--text); padding: 0.5rem 0; margin-bottom: 0.4rem; display: flex; justify-content: space-between; }
+    .masthead-label { font-family: sans-serif; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+    .pub-name { font-size: 32px; font-weight: 500; text-align: center; margin: 0.6rem 0 0.2rem; line-height: 1.1; }
+    .pub-sub { font-family: sans-serif; font-size: 10px; color: var(--text-muted); text-align: center; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+
+    .ticker-bar {
+      display: flex;
+      gap: 1.5rem;
+      padding: 0.6rem 0;
+      border-top: 0.5px solid var(--border);
+      border-bottom: 0.5px solid var(--border);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ticker-item { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; }
+    .ticker-label { font-family: sans-serif; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+    .ticker-val { font-family: sans-serif; font-size: 13px; font-weight: 500; }
+    .up { color: var(--success); }
+    .down { color: var(--accent); }
+
+    /* ── Brief output rendering ── */
+    #brief-output { min-height: 400px; }
+    #brief-output .section-label { font-family: sans-serif; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin: 1.5rem 0 0.5rem; }
+    #brief-output .kicker { font-family: sans-serif; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.3rem; }
+    #brief-output h1 { font-size: 26px; font-weight: 500; line-height: 1.25; margin-bottom: 0.5rem; }
+    #brief-output h2 { font-size: 19px; font-weight: 500; line-height: 1.3; margin-bottom: 0.4rem; margin-top: 1.25rem; }
+    #brief-output h3 { font-size: 16px; font-weight: 500; line-height: 1.3; margin-bottom: 0.35rem; }
+    #brief-output .deck { font-size: 15px; line-height: 1.6; color: var(--text-secondary); font-style: italic; margin-bottom: 0.75rem; }
+    #brief-output p { font-size: 15px; line-height: 1.8; margin-bottom: 0.8rem; }
+    #brief-output .rule { height: 0.5px; background: var(--border-strong); margin: 1.5rem 0; }
+    #brief-output .rule-thin { height: 0.5px; background: var(--border); margin: 0.75rem 0; }
+    #brief-output .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin: 0.75rem 0 1rem; }
+    #brief-output .story-block { padding: 0; }
+    #brief-output .story-block p { font-size: 13.5px; line-height: 1.65; color: var(--text-secondary); }
+    #brief-output .story-block h3 { font-size: 15px; }
+    #brief-output .data-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0.75rem 0 1rem; }
+    #brief-output .data-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 0.75rem; }
+    #brief-output .data-card-label { font-family: sans-serif; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.3rem; }
+    #brief-output .data-card-val { font-family: sans-serif; font-size: 17px; font-weight: 500; }
+    #brief-output .data-card-chg { font-family: sans-serif; font-size: 10px; margin-top: 3px; }
+    #brief-output blockquote { border-left: 2px solid var(--border-strong); padding: 0.5rem 0 0.5rem 1rem; margin: 1rem 0; }
+    #brief-output blockquote p { font-style: italic; font-size: 15px; color: var(--text); margin: 0 0 0.3rem; }
+    #brief-output blockquote cite { font-family: sans-serif; font-size: 11px; color: var(--text-muted); font-style: normal; }
+    #brief-output .tag { display: inline-block; font-family: sans-serif; font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; background: var(--border); color: var(--text-secondary); padding: 2px 7px; border-radius: 3px; margin-bottom: 0.4rem; }
+    #brief-output .tag-red { background: rgba(192,57,43,0.12); color: var(--accent); }
+    #brief-output .tag-green { background: rgba(26,122,63,0.12); color: var(--success); }
+    #brief-output .tag-amber { background: rgba(183,104,12,0.12); color: var(--warning); }
+    #brief-output .watch-box { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin: 0.75rem 0 1rem; }
+    #brief-output .watch-box h3 { font-family: sans-serif; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.75rem; font-weight: 500; }
+    #brief-output .brief-footer { margin-top: 2rem; padding-top: 0.75rem; border-top: 0.5px solid var(--border); font-family: sans-serif; font-size: 10px; color: var(--text-muted); }
+
+    /* Loading states */
+    .loading-state { text-align: center; padding: 4rem 2rem; }
+    .loading-spinner { width: 32px; height: 32px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1.5rem; }
+    .loading-text { font-family: sans-serif; font-size: 13px; color: var(--text-secondary); }
+    .loading-steps { font-family: sans-serif; font-size: 12px; color: var(--text-muted); margin-top: 0.5rem; min-height: 20px; }
+    .error-state { text-align: center; padding: 3rem 2rem; }
+    .error-state p { font-family: sans-serif; font-size: 14px; color: var(--text-secondary); margin-bottom: 1rem; }
+
+    .status-bar { font-family: sans-serif; font-size: 10px; color: var(--text-muted); text-align: right; margin-bottom: 0.5rem; }
+
+    @media (max-width: 560px) {
+      #brief-output .two-col { grid-template-columns: 1fr; }
+      #brief-output .data-strip { grid-template-columns: repeat(2, 1fr); }
+      .pub-name { font-size: 24px; }
+      .content { padding: 1.25rem 1rem 3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Auth Gate ── -->
+<div id="auth-gate">
+  <div class="auth-card">
+    <div class="auth-logo">The Daily Brief</div>
+    <div class="auth-sub">Australian Business Intelligence</div>
+
+    <label class="auth-label" for="api-key-input">Anthropic API Key</label>
+    <input
+      class="auth-input"
+      id="api-key-input"
+      type="password"
+      placeholder="sk-ant-..."
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <label class="auth-label" for="passcode-input">Access Passcode <span style="color:var(--text-muted)">(you set this)</span></label>
+    <input
+      class="auth-input"
+      id="passcode-input"
+      type="password"
+      placeholder="Create or enter your passcode"
+      autocomplete="off"
+    >
+
+    <div class="auth-remember">
+      <input type="checkbox" id="remember-me" checked>
+      <label for="remember-me">Remember on this device (encrypted)</label>
+    </div>
+
+    <button class="auth-btn" id="unlock-btn" onclick="handleUnlock()">Unlock & Load Briefing</button>
+    <div class="auth-error" id="auth-error"></div>
+
+    <p class="auth-note">
+      Your API key is encrypted with your passcode before storage — it is never sent anywhere except directly to the Anthropic API over HTTPS. No server, no tracking, no middlemen.<br><br>
+      Get a free API key at <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--text-secondary)">console.anthropic.com</a>
+    </p>
+  </div>
+</div>
+
+<!-- ── Main App ── -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="topbar-title">The Daily Brief</span>
+      <div class="topbar-actions">
+        <span id="last-updated" style="font-family:sans-serif;font-size:10px;color:var(--text-muted);"></span>
+        <button class="btn-sm" id="refresh-btn" onclick="loadBriefing(true)">
+          <span id="refresh-icon">↻</span> Refresh
+        </button>
+        <button class="btn-sm" onclick="handleLogout()" title="Sign out & clear stored key">⎋ Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="masthead">
+      <span class="masthead-label">Australian Business Intelligence</span>
+      <span class="masthead-label" id="date-label"></span>
+    </div>
+    <div class="pub-name">The Daily Brief</div>
+    <div class="pub-sub">Markets · Policy · Corporate · Economy</div>
+
+    <div class="ticker-bar" id="ticker-bar">
+      <div class="ticker-item"><span class="ticker-label">ASX 200</span><span class="ticker-val" id="t-asx">—</span></div>
+      <div class="ticker-item"><span class="ticker-label">All Ords</span><span class="ticker-val" id="t-allords">—</span></div>
+      <div class="ticker-item"><span class="ticker-label">AUD/USD</span><span class="ticker-val" id="t-aud">—</span></div>
+      <div class="ticker-item"><span class="ticker-label">Gold (US$)</span><span class="ticker-val" id="t-gold">—</span></div>
+      <div class="ticker-item"><span class="ticker-label">Oil (Brent)</span><span class="ticker-val" id="t-oil">—</span></div>
+      <div class="ticker-item"><span class="ticker-label">RBA Rate</span><span class="ticker-val" id="t-rba">—</span></div>
+      <div class="ticker-item"><span class="ticker-label">Bitcoin AUD</span><span class="ticker-val" id="t-btc">—</span></div>
+    </div>
+
+    <div id="brief-output">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Preparing your briefing…</div>
+        <div class="loading-steps" id="loading-steps">Connecting to news sources</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Security & Crypto helpers ──
+
+const STORAGE_KEY = 'daily_brief_v2';
+const PASSCODE_HASH_KEY = 'daily_brief_phash';
+
+async function deriveKey(passcode, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(passcode), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptData(data, passcode) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(passcode, salt);
+  const enc  = new TextEncoder();
+  const ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(data));
+  const buf  = new Uint8Array(salt.byteLength + iv.byteLength + ct.byteLength);
+  buf.set(salt, 0); buf.set(iv, 16); buf.set(new Uint8Array(ct), 28);
+  return btoa(String.fromCharCode(...buf));
+}
+
+async function decryptData(b64, passcode) {
+  const buf  = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const salt = buf.slice(0, 16);
+  const iv   = buf.slice(16, 28);
+  const ct   = buf.slice(28);
+  const key  = await deriveKey(passcode, salt);
+  const pt   = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  return new TextDecoder().decode(pt);
+}
+
+async function hashPasscode(passcode) {
+  const enc  = new TextEncoder();
+  const buf  = await crypto.subtle.digest('SHA-256', enc.encode('daily_brief_salt_v1:' + passcode));
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+
+// ── Session state ──
+let SESSION_KEY = null;
+
+async function handleUnlock() {
+  const apiKey   = document.getElementById('api-key-input').value.trim();
+  const passcode = document.getElementById('passcode-input').value;
+  const remember = document.getElementById('remember-me').checked;
+  const errEl    = document.getElementById('auth-error');
+  errEl.textContent = '';
+
+  if (!apiKey.startsWith('sk-ant-')) {
+    errEl.textContent = 'API key should start with sk-ant-'; return;
+  }
+  if (passcode.length < 6) {
+    errEl.textContent = 'Passcode must be at least 6 characters'; return;
+  }
+
+  const btn = document.getElementById('unlock-btn');
+  btn.disabled = true;
+  btn.textContent = 'Unlocking…';
+
+  try {
+    const storedHash = localStorage.getItem(PASSCODE_HASH_KEY);
+    const newHash    = await hashPasscode(passcode);
+
+    if (storedHash && storedHash !== newHash) {
+      errEl.textContent = 'Incorrect passcode for this device'; btn.disabled = false; btn.textContent = 'Unlock & Load Briefing'; return;
+    }
+    if (!storedHash) {
+      localStorage.setItem(PASSCODE_HASH_KEY, newHash);
+    }
+
+    SESSION_KEY = apiKey;
+
+    if (remember) {
+      const encrypted = await encryptData(apiKey, passcode);
+      localStorage.setItem(STORAGE_KEY, encrypted);
+    }
+
+    showApp();
+  } catch(e) {
+    errEl.textContent = 'Unlock failed — check your passcode'; btn.disabled = false; btn.textContent = 'Unlock & Load Briefing';
+  }
+}
+
+async function tryAutoUnlock() {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) return false;
+  const passcode = prompt('Enter your Daily Brief passcode to auto-unlock:');
+  if (!passcode) return false;
+  try {
+    const storedHash = localStorage.getItem(PASSCODE_HASH_KEY);
+    const newHash    = await hashPasscode(passcode);
+    if (storedHash && storedHash !== newHash) { alert('Incorrect passcode.'); return false; }
+    SESSION_KEY = await decryptData(stored, passcode);
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+function handleLogout() {
+  SESSION_KEY = null;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+function showApp() {
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setDateLabel();
+  loadBriefing(false);
+}
+
+// ── Date helpers ──
+function setDateLabel() {
+  const d = new Date();
+  const opts = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
+  document.getElementById('date-label').textContent = d.toLocaleDateString('en-AU', opts);
+}
+
+function nowStr() {
+  return new Date().toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
+}
+
+// ── Ticker data (Yahoo Finance AU public JSON via proxy-free approach) ──
+function setTicker(id, val, direction) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = direction === 'up'
+    ? `${val} <span class="up">▲</span>`
+    : direction === 'down'
+    ? `${val} <span class="down">▼</span>`
+    : val;
+}
+
+function populateTickers(data) {
+  if (!data) return;
+  if (data.asx)     setTicker('t-asx',     data.asx,     data.asx_dir);
+  if (data.allords) setTicker('t-allords',  data.allords, data.allords_dir);
+  if (data.aud)     setTicker('t-aud',      data.aud,     data.aud_dir);
+  if (data.gold)    setTicker('t-gold',     data.gold,    data.gold_dir);
+  if (data.oil)     setTicker('t-oil',      data.oil,     data.oil_dir);
+  if (data.rba)     setTicker('t-rba',      data.rba,     null);
+  if (data.btc)     setTicker('t-btc',      data.btc,     data.btc_dir);
+}
+
+// ── Load Briefing ──
+const STEPS = [
+  'Scanning Australian financial markets…',
+  'Pulling ASX corporate announcements…',
+  'Checking RBA and economic data…',
+  'Reviewing global macro developments…',
+  'Writing your briefing…',
+  'Formatting the front page…',
+];
+
+async function loadBriefing(isRefresh) {
+  const outputEl  = document.getElementById('brief-output');
+  const refreshBtn = document.getElementById('refresh-btn');
+  const refreshIcon = document.getElementById('refresh-icon');
+
+  refreshBtn.disabled = true;
+  refreshIcon.classList.add('spin');
+
+  const stepsEl = document.getElementById('loading-steps');
+  outputEl.innerHTML = `
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">${isRefresh ? 'Refreshing your briefing…' : 'Preparing your briefing…'}</div>
+      <div class="loading-steps" id="loading-steps">Connecting to news sources</div>
+    </div>`;
+
+  let stepIdx = 0;
+  const stepInterval = setInterval(() => {
+    const el = document.getElementById('loading-steps');
+    if (el && stepIdx < STEPS.length) el.textContent = STEPS[stepIdx++];
+  }, 2200);
+
+  const today = new Date().toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  const prompt = `You are the editor of a premium Australian financial newspaper. Today is ${today}. 
+
+Your task: research and write a complete daily briefing of today's most important Australian business and financial news. Use your knowledge of current events up to today.
+
+Cover these sections in this exact HTML structure:
+
+<div class="section-label">Lead story</div>
+<div class="kicker">[SECTOR NAME]</div>
+<h1>[COMPELLING HEADLINE — 10 words max]</h1>
+<p class="deck">[Italic summary sentence — the most important fact]</p>
+<p>[Two detailed paragraphs of analysis. Include specific numbers, company names, analyst quotes where relevant. Write at the standard of the Financial Times or AFR.]</p>
+<blockquote><p>[Key quote from executive, official, or analyst]</p><cite>— [Name, Title, Organisation]</cite></blockquote>
+<p>[One more paragraph of context or implication for Australian investors/businesses.]</p>
+
+<div class="rule"></div>
+
+<div class="section-label">Markets</div>
+<div class="data-strip">
+  <div class="data-card"><div class="data-card-label">ASX 200</div><div class="data-card-val">[value]</div><div class="data-card-chg [up or down]">[change]</div></div>
+  <div class="data-card"><div class="data-card-label">AUD/USD</div><div class="data-card-val">[value]</div><div class="data-card-chg [up or down]">[change]</div></div>
+  <div class="data-card"><div class="data-card-label">Gold (US$)</div><div class="data-card-val">[value]</div><div class="data-card-chg [up or down]">[change]</div></div>
+  <div class="data-card"><div class="data-card-label">Oil (Brent)</div><div class="data-card-val">[value]</div><div class="data-card-chg [up or down]">[change]</div></div>
+</div>
+<p>[Markets summary paragraph: what drove moves today, key movers on the ASX, sector performance, global context.]</p>
+<p>[Second paragraph: what to watch, upcoming data, risks.]</p>
+
+<div class="rule"></div>
+
+<div class="section-label">Corporate</div>
+<div class="two-col">
+  <div class="story-block"><span class="tag [tag-red or tag-green or tag-amber]">[LABEL]</span><div class="story-kicker">[SECTOR]</div><h3>[Headline]</h3><p>[2 sentences of specific detail]</p></div>
+  <div class="story-block"><span class="tag [tag-red or tag-green or tag-amber]">[LABEL]</span><div class="story-kicker">[SECTOR]</div><h3>[Headline]</h3><p>[2 sentences of specific detail]</p></div>
+  <div class="story-block"><span class="tag">[LABEL]</span><div class="story-kicker">[SECTOR]</div><h3>[Headline]</h3><p>[2 sentences of specific detail]</p></div>
+  <div class="story-block"><span class="tag">[LABEL]</span><div class="story-kicker">[SECTOR]</div><h3>[Headline]</h3><p>[2 sentences of specific detail]</p></div>
+</div>
+
+<div class="rule"></div>
+
+<div class="section-label">Policy & Economy</div>
+<h2>[Headline about macro/policy topic]</h2>
+<p>[Two substantial paragraphs on RBA, government policy, economic data, budget, or global macro affecting Australia.]</p>
+<blockquote><p>[Quote from policymaker or economist]</p><cite>— [Attribution]</cite></blockquote>
+<p>[Implication paragraph for households, businesses, investors.]</p>
+
+<div class="rule"></div>
+
+<div class="section-label">What to watch</div>
+<div class="watch-box">
+  <h3>On the radar</h3>
+  <div class="two-col">
+    <div class="story-block"><div class="story-kicker">[TIMEFRAME]</div><p><strong>[Event]</strong> — [2 sentences why it matters]</p></div>
+    <div class="story-block"><div class="story-kicker">[TIMEFRAME]</div><p><strong>[Event]</strong> — [2 sentences why it matters]</p></div>
+  </div>
+</div>
+
+<div class="brief-footer">Sources: RBA, ASX, Reuters, Bloomberg, ABC News, Morningstar Australia — ${today} · The Daily Brief</div>
+
+Rules:
+- Output ONLY the HTML above, no preamble, no markdown, no explanation
+- Fill every placeholder with real, specific, current information
+- Use real figures, names, percentages — no placeholders like [X%]
+- Write with the authority and quality of the AFR or Financial Times
+- All content must reflect what is actually happening in Australian business and finance today
+- The data-card-chg div must use class "up" for positive changes and "down" for negative`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': SESSION_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5-20251001',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearInterval(stepInterval);
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const html  = data.content?.[0]?.text || '';
+
+    if (!html.trim()) throw new Error('Empty response from API');
+
+    outputEl.innerHTML = html;
+
+    document.getElementById('last-updated').textContent = `Updated ${nowStr()}`;
+
+    // extract ticker data from rendered content if available
+    const tickerData = extractTickerData(html);
+    populateTickers(tickerData);
+
+    refreshBtn.disabled = false;
+    refreshIcon.classList.remove('spin');
+
+    // Cache briefing for this session
+    sessionStorage.setItem('cached_brief', JSON.stringify({ html, time: Date.now() }));
+
+  } catch(e) {
+    clearInterval(stepInterval);
+    refreshBtn.disabled = false;
+    refreshIcon.classList.remove('spin');
+
+    let diagnosis = e.message;
+    let hint = '';
+    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError') || e.message.includes('CORS')) {
+      diagnosis = 'Network blocked — try a different browser or disable extensions';
+      hint = 'If on Safari, check Settings > Advanced > Experimental Features. Chrome or Firefox usually work best.';
+    } else if (e.message.includes('401')) {
+      diagnosis = 'API key rejected (401)';
+      hint = 'Sign out and re-enter your API key — make sure it starts with sk-ant-';
+    } else if (e.message.includes('402')) {
+      diagnosis = 'No API credits (402)';
+      hint = 'Add credit at console.anthropic.com — each briefing costs ~$0.02';
+    } else if (e.message.includes('429')) {
+      diagnosis = 'Rate limited (429) — too many requests';
+      hint = 'Wait 60 seconds and try again.';
+    } else if (e.message.includes('529') || e.message.includes('overloaded')) {
+      diagnosis = 'Anthropic API overloaded — try again shortly';
+    }
+
+    outputEl.innerHTML = `
+      <div class="error-state">
+        <p>Could not load today's briefing.</p>
+        <p style="font-size:13px;color:var(--accent);margin:0.4rem 0 0.5rem">${diagnosis}</p>
+        ${hint ? `<p style="font-size:12px;color:var(--text-muted);max-width:360px;margin:0 auto 1rem">${hint}</p>` : ''}
+        <button class="btn-sm" onclick="loadBriefing(true)" style="margin:1rem auto;display:block">&#x21BB; Try again</button>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:1rem"><a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:inherit">console.anthropic.com</a></p>
+      </div>`;
+  }
+}
+
+function extractTickerData(html) {
+  // pull market figures from the rendered HTML for the ticker bar
+  const d = {};
+  const patterns = {
+    asx: /ASX\s*200[^0-9]*([0-9,]+)/i,
+    aud: /AUD\/USD[^0-9]*([0-9.]+)/i,
+    gold: /Gold[^0-9]*\$?([0-9,]+)/i,
+    oil: /(?:Brent|Oil)[^0-9]*\$?([0-9.]+)/i,
+  };
+  for (const [k, re] of Object.entries(patterns)) {
+    const m = html.match(re);
+    if (m) d[k] = m[1];
+  }
+  return d;
+}
+
+// ── Init ──
+(async () => {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) {
+    const unlocked = await tryAutoUnlock();
+    if (unlocked) { showApp(); return; }
+  }
+  // check session cache
+  const cached = sessionStorage.getItem('cached_brief');
+  // show auth gate
+  document.getElementById('auth-gate').style.display = 'flex';
+
+  // allow Enter key on passcode
+  document.getElementById('passcode-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleUnlock();
+  });
+  document.getElementById('api-key-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('passcode-input').focus();
+  });
+})();
+</script>
+</body>
+</html>
